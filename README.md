@@ -1,1 +1,222 @@
 # cwgauction.github.io
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>실시간 팀장 경매</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: #0b1020;
+      color: #f5f5f5;
+    }
+    h1 {
+      margin-top: 0;
+      font-size: 24px;
+    }
+    .top-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    select, input, button {
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid #333;
+      background: #141827;
+      color: #f5f5f5;
+    }
+    button {
+      cursor: pointer;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1.5fr);
+      gap: 16px;
+    }
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+    .card {
+      background: #141827;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 0 0 1px #232842;
+    }
+    .card h2 {
+      margin-top: 0;
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+    .player-name {
+      font-size: 20px;
+      font-weight: bold;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: #23314f;
+      margin-left: 4px;
+    }
+    .timer {
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .leader-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .leader-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+    }
+    .leader-row span.name {
+      font-weight: 600;
+    }
+    .leader-row span.points {
+      font-variant-numeric: tabular-nums;
+    }
+    .bid-input-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .bid-log {
+      max-height: 260px;
+      overflow-y: auto;
+      margin: 0;
+      padding-left: 18px;
+      font-size: 13px;
+    }
+    .bid-log li {
+      margin-bottom: 2px;
+    }
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 4px;
+    }
+    .status-bidding {
+      background: #22c55e;
+    }
+    .status-waiting {
+      background: #eab308;
+    }
+    .status-finished {
+      background: #ef4444;
+    }
+    .small {
+      font-size: 12px;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <h1>실시간 팀장 경매</h1>
+    <div style="flex:1"></div>
+    <label>
+      역할 선택:
+      <select id="role-select">
+        <option value="viewer">관전(읽기전용)</option>
+        <option value="leader1">팀장1</option>
+        <option value="leader2">팀장2</option>
+        <option value="leader3">팀장3</option>
+        <option value="leader4">팀장4</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="layout">
+    <!-- 왼쪽: 현재 선수 / 입찰 -->
+    <div>
+      <div class="card">
+        <h2>현재 선수</h2>
+        <div id="room-status">
+          <span id="room-status-dot" class="status-dot status-waiting"></span>
+          <span id="room-status-text">대기중</span>
+        </div>
+        <p class="player-name" id="player-name">-</p>
+        <p>
+          기본가: <span id="player-base">-</span><br />
+          상태: <span id="player-status">-</span>
+        </p>
+        <p>
+          남은 시간: <span class="timer" id="timer">-</span>
+          <span class="small">(타이머는 예시용 텍스트)</span>
+        </p>
+
+        <hr />
+
+        <h3>현재 최고 입찰</h3>
+        <p>
+          금액: <span id="highest-amount">-</span><br />
+          팀장: <span id="highest-leader">-</span>
+        </p>
+
+        <hr />
+
+        <h3>내 입찰</h3>
+        <p class="small">역할에서 팀장을 선택해야 입찰 버튼이 활성화됩니다.</p>
+        <div class="bid-input-row">
+          <input type="number" id="bid-amount" placeholder="입찰 금액" />
+          <button id="bid-button" disabled>입찰</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 오른쪽: 팀장 포인트 & 입찰 로그 -->
+    <div>
+      <div class="card">
+        <h2>팀장 포인트 (팀당 1000점 기준)</h2>
+        <div class="leader-list">
+          <div class="leader-row">
+            <span class="name">팀장1</span>
+            <span class="points" id="points-leader1">1000 / 1000</span>
+          </div>
+          <div class="leader-row">
+            <span class="name">팀장2</span>
+            <span class="points" id="points-leader2">1000 / 1000</span>
+          </div>
+          <div class="leader-row">
+            <span class="name">팀장3</span>
+            <span class="points" id="points-leader3">1000 / 1000</span>
+          </div>
+          <div class="leader-row">
+            <span class="name">팀장4</span>
+            <span class="points" id="points-leader4">1000 / 1000</span>
+          </div>
+        </div>
+        <p class="small" style="margin-top:8px;">
+          * 사용 포인트 = 모든 선수에 대한 입찰 금액 합계<br />
+          * 남은 포인트 = 1000 - 사용 포인트
+        </p>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <h2>입찰 로그 (현재 선수 기준)</h2>
+        <ul id="bid-log" class="bid-log"></ul>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
